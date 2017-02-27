@@ -5,5 +5,8 @@
 ```
   self.bannerView = [[YJBannerView alloc] init];
   self.bannerView.frame = CGRectMake(0, 0, 200, 100);
-  self.bannerView.bannerArray = [NSMutableArray arrayWithObjects:@"1", @"2", @"3", nil];
+  // 设置图片(图片名)
+  self.bannerView.bannerArray = [NSMutableArray arrayWithObjects:@"1", @"2", @"3", nil];
+  // 设置滚动时间
+  self.bannerView.scrollInterval = 0.2
 ```
