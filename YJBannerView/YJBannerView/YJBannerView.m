@@ -8,16 +8,15 @@
 
 #import "YJBannerView.h"
 #import "YJBannerCell.h"
-
-#import "PCConfig.h"
-#import "PCHeader.h"
-#import "PCMarco.h"
+#import <Masonry.h>
+#import <UIImageView+WebCache.h>
 
 // 总共的item数
 #define MY_TOTAL_ITEMS (self.itemCount * 1000)
 
 #define MY_WIDTH self.frame.size.width
 #define MY_HEIGHT self.frame.size.height
+#define kScale [UIScreen mainScreen].bounds.size.width / 375
 
 @interface YJBannerView ()<UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout, UIScrollViewDelegate>
 
@@ -31,33 +30,73 @@
 
 @property (nonatomic, strong) NSTimer *timer;
 
+@property (nonatomic, strong) NSMutableArray *bannerArray;
+// 时间间隔
+@property (nonatomic, assign) CGFloat scrollInterval;
+// 占位图
+@property (nonatomic, strong) UIImage *placeHolder;
+
 @end
 
 @implementation YJBannerView
 
 static NSString *bannerReuse = @"YJBannerView";
 
-- (instancetype)initWithFrame:(CGRect)frame
+- (instancetype)initWithFrame:(CGRect)frame bannerArray:(NSMutableArray *)array placeHolder:(UIImage *)image scrollInterval:(CGFloat)interval
 {
     self = [super initWithFrame:frame];
     if (self) {
-        [self addSubview:self.collectionView];
-        [self addSubview:self.pageCtrl];
+        self.bannerArray = array;
+        self.placeHolder = image;
+        self.scrollInterval = interval;
+        self.itemCount = array.count;
+        if (self.itemCount < 2) {
+            self.collectionView.scrollEnabled = NO;
+        }
+        [self setupSubviewsWithFrame:frame];
         [self startScroll];
     }
     return self;
 }
 
-- (void)layoutSubviews
-{
-    self.collectionView.frame = self.bounds;
+- (void)setupSubviewsWithFrame:(CGRect)frame {
+    self.collectionView = ({
+        UICollectionViewFlowLayout *flowLayout = [[UICollectionViewFlowLayout alloc] init];
+        flowLayout.minimumLineSpacing = 0;
+        flowLayout.minimumInteritemSpacing = 0;
+        flowLayout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
+        UICollectionView *collectionView = [[UICollectionView alloc] initWithFrame:self.bounds collectionViewLayout:flowLayout];
+        [self addSubview:collectionView];
+        collectionView.frame = CGRectMake(0, 0, frame.size.width, frame.size.height);
+        collectionView.backgroundColor = [UIColor whiteColor];
+        collectionView.showsHorizontalScrollIndicator = NO;
+        collectionView.clipsToBounds = NO;
+        collectionView.bounces = NO;
+        collectionView.pagingEnabled = YES;
+        collectionView.delegate = self;
+        collectionView.dataSource = self;
+        // 注册cell
+        [collectionView registerClass:[YJBannerCell class] forCellWithReuseIdentifier:bannerReuse];
+        collectionView;
+    });
     
-    [self.pageCtrl mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.left.mas_equalTo(self.mas_left);
-        make.right.mas_equalTo(self.mas_right);
-        make.top.mas_equalTo(self.mas_top).offset(MY_HEIGHT - 30 * kScale);
-        make.height.mas_equalTo(20 * kScale);
-    }];
+    self.pageCtrl = ({
+        UIPageControl *pageCtrl = [[UIPageControl alloc] init];
+        [self addSubview:pageCtrl];
+        [pageCtrl mas_makeConstraints:^(MASConstraintMaker *make) {
+            make.left.mas_equalTo(self.mas_left);
+            make.right.mas_equalTo(self.mas_right);
+            make.top.mas_equalTo(frame.size.height - 30 * kScale);
+            make.height.mas_equalTo(20 * kScale);
+        }];
+        if (self.bannerArray.count > 1) {
+            pageCtrl.numberOfPages = self.bannerArray.count;
+        }
+        pageCtrl.userInteractionEnabled = NO;
+        pageCtrl.currentPageIndicatorTintColor = [UIColor lightGrayColor];
+        pageCtrl.pageIndicatorTintColor = [UIColor colorWithWhite:1 alpha:0.8];
+        pageCtrl;
+    });
 }
 
 #pragma mark - UICollectionViewDelegate and UICollectionViewDataSource
@@ -78,9 +117,14 @@ static NSString *bannerReuse = @"YJBannerView";
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath
 {
     YJBannerCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:bannerReuse forIndexPath:indexPath];
-    //    NSURL *url = [NSURL URLWithString:self.bannerArray[indexPath.item % self.itemCount]];
-    //    [cell.imgView sd_setImageWithURL:url placeholderImage:IMAGE(@"")];
-    cell.imgView.backgroundColor = ARC4RANDOM_COLOR;
+    NSString *string = self.bannerArray[indexPath.item % self.itemCount];
+    if ([string containsString:@"/"]) {
+        NSURL *url = [NSURL URLWithString:string];
+        [cell.imgView sd_setImageWithURL:url placeholderImage:self.placeHolder];
+    } else {
+        cell.imgView.image = [UIImage imageNamed:string];
+        
+    }
     return cell;
 }
 
@@ -102,8 +146,6 @@ static NSString *bannerReuse = @"YJBannerView";
     return CGSizeMake(MY_WIDTH, MY_HEIGHT);
 }
 
-
-
 #pragma mark - 定时器方法
 - (void)startScroll
 {
@@ -117,11 +159,9 @@ static NSString *bannerReuse = @"YJBannerView";
     if (self.itemCount == 0 || self.itemCount == 1) {
         return;
     }
-    
     NSIndexPath *currentIndexPath = [[self.collectionView indexPathsForVisibleItems] firstObject];
     NSUInteger currentItem = currentIndexPath.item;
     NSUInteger nextItem = currentItem + 1;
-    
     if(nextItem >= MY_TOTAL_ITEMS) {
         return;
     }
@@ -164,64 +204,10 @@ static NSString *bannerReuse = @"YJBannerView";
     [self startScroll];
 }
 
-
 #pragma mark getter and setters
-- (UICollectionView *)collectionView
-{
-    if (!_collectionView) {
-        UICollectionViewFlowLayout *flowLayout = [[UICollectionViewFlowLayout alloc] init];
-        flowLayout.minimumLineSpacing = 0;
-        flowLayout.minimumInteritemSpacing = 0;
-        flowLayout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-        self.collectionView = [[UICollectionView alloc] initWithFrame:self.bounds collectionViewLayout:flowLayout];
-        [self addSubview:self.collectionView];
-        self.collectionView.backgroundColor = [UIColor whiteColor];
-        self.collectionView.showsHorizontalScrollIndicator = NO;
-        self.collectionView.clipsToBounds = NO;
-        self.collectionView.bounces = NO;
-        self.collectionView.pagingEnabled = YES;
-        self.collectionView.delegate = self;
-        self.collectionView.dataSource = self;
-        // 注册cell
-        [self.collectionView registerClass:[YJBannerCell class] forCellWithReuseIdentifier:bannerReuse];
-    }
-    return _collectionView;
-}
-
-- (UIPageControl *)pageCtrl
-{
-    if (!_pageCtrl) {
-        self.pageCtrl = [[UIPageControl alloc] init];
-        self.pageCtrl.userInteractionEnabled = NO;
-        self.pageCtrl.currentPageIndicatorTintColor = [UIColor lightGrayColor];
-        self.pageCtrl.pageIndicatorTintColor = [UIColor colorWithWhite:1 alpha:0.8];
-    }
-    return _pageCtrl;
-}
-
 - (void)reloadData
 {
     [self.collectionView reloadData];
 }
-
-- (void)setBannerArray:(NSMutableArray *)bannerArray
-{
-    self.itemCount = bannerArray.count;
-    if (self.itemCount < 2) {
-        self.collectionView.scrollEnabled = NO;
-    }
-    self.pageCtrl.numberOfPages = bannerArray.count;
-    [self.collectionView reloadData];
-    [self startScroll];
-}
-
-- (CGFloat)scrollInterval
-{
-    if (!_scrollInterval) {
-        self.scrollInterval = 3;
-    }
-    return _scrollInterval;
-}
-
 
 @end
