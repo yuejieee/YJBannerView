@@ -18,3 +18,6 @@
 - (void)banner:(YJBannerView *)banner didSelectIndex:(NSInteger)index;
 // 获取点击item的index
 ```
+
+## Warning
+内部使用了SDWebImage和Masonry，使用时务必将这两个框架导入到工程中
