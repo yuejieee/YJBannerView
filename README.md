@@ -1,4 +1,7 @@
 # YJBannerView
+
+## Effect
+![](https://github.com/yuejieee/YJBannerView/blob/master/%E6%95%88%E6%9E%9C%E5%9B%BE.png)
 ## Description
 这是一个无限滚动的轮播图封装，主要思路是将collectionView的item至为1000 * 真实item个数，使其呈现出假的无限滚动，利用collcetionView重用远离，减少了资源的占用
 ## Usage
